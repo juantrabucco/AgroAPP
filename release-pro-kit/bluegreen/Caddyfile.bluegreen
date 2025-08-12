@@ -1,0 +1,19 @@
+{
+  email {$EMAIL_ADMIN}
+}
+
+{$APP_DOMAIN} {
+  encode zstd gzip
+
+  @api path /api*
+  reverse_proxy @api {$APP_UPSTREAM_API}
+
+  reverse_proxy / {$APP_UPSTREAM_WEB}
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+  }
+
+  @health path /healthz
+  respond @health 200
+}

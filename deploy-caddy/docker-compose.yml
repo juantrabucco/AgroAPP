@@ -1,0 +1,146 @@
+version: "3.9"
+
+x-env: &env
+  TZ: ${TZ}
+  NODE_ENV: ${NODE_ENV}
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: ${PROJECT_NAME}_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - APP_DOMAIN=${APP_DOMAIN}
+      - EMAIL_ADMIN=${EMAIL_ADMIN}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+    networks: [agro_net]
+
+  web:
+    build:
+      context: ..
+      dockerfile: ./deploy-caddy/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NODE_ENV: ${NODE_ENV}
+    container_name: ${PROJECT_NAME}_web
+    restart: unless-stopped
+    environment:
+      <<: *env
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+    networks: [agro_net]
+
+  api:
+    build:
+      context: ..
+      dockerfile: ./deploy-caddy/Dockerfile.api
+      args:
+        NODE_ENV: ${NODE_ENV}
+    container_name: ${PROJECT_NAME}_api
+    restart: unless-stopped
+    environment:
+      <<: *env
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: ${REDIS_URL}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      PUPPETEER_SKIP_DOWNLOAD: "false"
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 15
+    networks: [agro_net]
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ${PROJECT_NAME}_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: ${TZ}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks: [agro_net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${PROJECT_NAME}_redis
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    networks: [agro_net]
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-07T00-52-20Z
+    container_name: ${PROJECT_NAME}_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks: [agro_net]
+
+  # Backups: pg_dump diario + retención + opcional upload a MinIO (S3)
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}_backup
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CRON_SCHEDULE: ${BACKUP_CRON}
+      RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
+      S3_BACKUP_ENABLE: ${S3_BACKUP_ENABLE}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BACKUP_BUCKET}
+      S3_PREFIX: ${S3_BACKUP_PREFIX}
+    depends_on:
+      - postgres
+      - minio
+    volumes:
+      - db_backups:/backups
+    networks: [agro_net]
+
+networks:
+  agro_net:
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_data:
+  minio_data:
+  db_backups:

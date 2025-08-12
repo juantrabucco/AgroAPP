@@ -1,0 +1,8 @@
+Phase,%,Estado,Pendiente
+F1 Campos/Animales/Lotes,100,Done,—
+F2 Sanidad y Tareas,100,Done,—
+F3 Comercial,100,Done,—
+F4 Contabilidad (MVP),100,Done,—
+F5 Dashboards & UX,100,Done,—
+F6 Beta,100,Done,UAT continua; recoger feedback y resolver issues menores
+F7 Lanzamiento,95,En curso,Probar restore desde backup; setear BASIC_AUTH_HASH; apuntar DNS de MONITOR_DOMAIN; smoke test alertas

@@ -1,0 +1,330 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+  name         String?
+  roles        RoleAssignment[]
+  createdAt    DateTime @default(now())
+}
+
+model Company {
+  id        String @id @default(cuid())
+  name      String
+  fields    Field[]
+  users     RoleAssignment[]
+  accounts  Account[]
+  createdAt DateTime @default(now())
+}
+
+model RoleAssignment {
+  id        String  @id @default(cuid())
+  userId    String
+  companyId String
+  fieldId   String?
+  role      Role
+  user      User    @relation(fields: [userId], references: [id])
+  company   Company @relation(fields: [companyId], references: [id])
+  field     Field?  @relation(fields: [fieldId], references: [id])
+  @@index([userId, companyId, fieldId])
+}
+
+enum Role { OWNER ADMIN FOREMAN WORKER ACCOUNTANT }
+
+model Field {
+  id        String @id @default(cuid())
+  companyId String
+  name      String
+  location  String?
+  company   Company @relation(fields: [companyId], references: [id])
+  paddocks  Paddock[]
+  lots      Lot[]
+  animals   Animal[]
+  tasks     Task[]
+}
+
+model Paddock {
+  id       String @id @default(cuid())
+  fieldId  String
+  name     String
+  field    Field  @relation(fields: [fieldId], references: [id])
+  animalsFrom Animal[] @relation("fromPaddock")
+  animalsTo   Animal[] @relation("toPaddock")
+}
+
+model Lot {
+  id       String @id @default(cuid())
+  fieldId  String
+  name     String
+  field    Field  @relation(fields: [fieldId], references: [id])
+  animals  Animal[]
+}
+
+enum Species { BOVINE OVINE CAPRINE EQUINE OTHER }
+enum Sex { M F }
+enum AnimalStatus { ACTIVE SOLD DEAD }
+
+model Animal {
+  id        String   @id @default(cuid())
+  companyId String
+  fieldId   String
+  lotId     String?
+  tagId     String   @unique
+  species   Species
+  sex       Sex
+  birthDate DateTime?
+  status    AnimalStatus @default(ACTIVE)
+  field     Field   @relation(fields: [fieldId], references: [id])
+  lot       Lot?    @relation(fields: [lotId], references: [id])
+  company   Company @relation(fields: [companyId], references: [id])
+  movements AnimalMovement[]
+}
+
+model AnimalMovement {
+  id            String   @id @default(cuid())
+  animalId      String
+  fromPaddockId String?
+  toPaddockId   String?
+  date          DateTime
+  reason        String?
+  animal        Animal   @relation(fields: [animalId], references: [id])
+  fromPaddock   Paddock? @relation("fromPaddock", fields: [fromPaddockId], references: [id])
+  toPaddock     Paddock? @relation("toPaddock", fields: [toPaddockId], references: [id])
+}
+
+model HealthPlan {
+  id        String @id @default(cuid())
+  companyId String
+  species   Species
+  name      String
+  notes     String?
+  company   Company @relation(fields: [companyId], references: [id])
+  events    HealthEvent[]
+}
+
+model HealthEvent {
+  id        String   @id @default(cuid())
+  companyId String
+  fieldId   String?
+  lotId     String?
+  dueDate   DateTime
+  type      String
+  product   String?
+  dosage    String?
+  company   Company @relation(fields: [companyId], references: [id])
+  field     Field?  @relation(fields: [fieldId], references: [id])
+  lot       Lot?    @relation(fields: [lotId], references: [id])
+  applications HealthApplication[]
+}
+
+model HealthApplication {
+  id        String   @id @default(cuid())
+  eventId   String?
+  companyId String
+  fieldId   String?
+  lotId     String?
+  animalId  String?
+  date      DateTime
+  product   String?
+  dose      String?
+  cost      Float? 
+  responsibleUserId String?
+  event     HealthEvent? @relation(fields: [eventId], references: [id])
+  animal    Animal?      @relation(fields: [animalId], references: [id])
+}
+
+model Task {
+  id        String @id @default(cuid())
+  companyId String
+  fieldId   String?
+  paddockId String?
+  title     String
+  dueDate   DateTime?
+  status    String @default("PENDING")
+  cost      Float?
+  notes     String?
+  company   Company @relation(fields: [companyId], references: [id])
+  field     Field?  @relation(fields: [fieldId], references: [id])
+  paddock   Paddock? @relation(fields: [paddockId], references: [id])
+}
+
+enum CounterpartyType { CUSTOMER SUPPLIER }
+
+model Counterparty {
+  id        String @id @default(cuid())
+  companyId String
+  type      CounterpartyType
+  name      String
+  taxId     String?
+  company   Company @relation(fields: [companyId], references: [id])
+  sales     Sale[]
+  purchases Purchase[]
+}
+
+model Item {
+  id        String @id @default(cuid())
+  companyId String
+  name      String
+  type      String
+  unit      String?
+  company   Company @relation(fields: [companyId], references: [id])
+  saleLines SaleLine[]
+  purchaseLines PurchaseLine[]
+}
+
+model Sale {
+  id            String @id @default(cuid())
+  companyId     String
+  counterpartyId String
+  date          DateTime
+  total         Float
+  invoiceNumber String?
+  company       Company @relation(fields: [companyId], references: [id])
+  counterparty  Counterparty @relation(fields: [counterpartyId], references: [id])
+  lines         SaleLine[]
+}
+
+model SaleLine {
+  id       String @id @default(cuid())
+  saleId   String
+  itemId   String?
+  animalId String?
+  qty      Float
+  price    Float
+  sale     Sale @relation(fields: [saleId], references: [id])
+  item     Item? @relation(fields: [itemId], references: [id])
+  animal   Animal? @relation(fields: [animalId], references: [id])
+}
+
+model Purchase {
+  id            String @id @default(cuid())
+  companyId     String
+  counterpartyId String
+  date          DateTime
+  total         Float
+  invoiceNumber String?
+  company       Company @relation(fields: [companyId], references: [id])
+  counterparty  Counterparty @relation(fields: [counterpartyId], references: [id])
+  lines         PurchaseLine[]
+}
+
+model PurchaseLine {
+  id         String @id @default(cuid())
+  purchaseId String
+  itemId     String?
+  qty        Float
+  price      Float
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  item       Item? @relation(fields: [itemId], references: [id])
+}
+
+enum AccountType { ASSET LIABILITY EQUITY REVENUE EXPENSE }
+
+model Account {
+  id        String @id @default(cuid())
+  companyId String
+  code      String
+  name      String
+  type      AccountType
+  company   Company @relation(fields: [companyId], references: [id])
+  lines     JournalEntryLine[]
+  @@unique([companyId, code])
+}
+
+model JournalEntry {
+  id        String @id @default(cuid())
+  companyId String
+  date      DateTime
+  memo      String?
+  sourceType String?
+  sourceId   String?
+  company   Company @relation(fields: [companyId], references: [id])
+  lines     JournalEntryLine[]
+}
+
+model JournalEntryLine {
+  id        String @id @default(cuid())
+  journalEntryId String
+  accountId String
+  debit     Float @default(0)
+  credit    Float @default(0)
+  fieldId   String?
+  counterpartyId String?
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id])
+  account       Account      @relation(fields: [accountId], references: [id])
+}
+
+model FileObject {
+  id        String @id @default(cuid())
+  companyId String
+  module    String
+  entityId  String?
+  url       String
+  contentType String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String @id @default(cuid())
+  companyId String?
+  userId    String?
+  table     String
+  action    String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+}
+
+
+model Sequence {
+  id        String   @id @default(cuid())
+  companyId String
+  type      String
+  prefix    String?
+  nextNumber Int     @default(1)
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, type])
+}
+
+enum SettlementKind { RECEIPT PAYMENT }
+enum PaymentMethod { CASH BANK }
+
+model Settlement {
+  id            String   @id @default(cuid())
+  companyId     String
+  counterpartyId String
+  date          DateTime
+  amount        Float
+  kind          SettlementKind
+  method        PaymentMethod
+  memo          String?
+  company       Company @relation(fields: [companyId], references: [id])
+  counterparty  Counterparty @relation(fields: [counterpartyId], references: [id])
+}
+
+
+model Notification {
+  id         String   @id @default(cuid())
+  companyId  String
+  type       String
+  title      String
+  payload    Json
+  dueDate    DateTime?
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+  company    Company  @relation(fields: [companyId], references: [id])
+}
+
+
+model PeriodLock {
+  id         String   @id @default(cuid())
+  companyId  String
+  fromDate   DateTime
+  toDate     DateTime
+  lockedById String?
+  createdAt  DateTime @default(now())
+  company    Company  @relation(fields: [companyId], references: [id])
+}

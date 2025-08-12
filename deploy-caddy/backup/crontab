@@ -1,0 +1,10 @@
+# Environment variables are passed from container env
+# SCHEDULE controlled via CRON_SCHEDULE
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# run
+# m h dom mon dow user  command
+# Default: 02:30 every day
+# Use env CRON_SCHEDULE to override (we render it via CMD)
+${CRON_SCHEDULE} /home/backup/run.sh >> /proc/1/fd/1 2>&1

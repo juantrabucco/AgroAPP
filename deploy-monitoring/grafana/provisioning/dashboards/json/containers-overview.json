@@ -1,0 +1,31 @@
+{
+  "id": null,
+  "title": "Containers Overview (Simple)",
+  "tags": ["agro"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "type": "graph",
+      "title": "CPU (cAdvisor)",
+      "targets": [
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{image!=""}[5m])) by (name)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Memory (cAdvisor)",
+      "targets": [
+        { "expr": "sum(container_memory_usage_bytes{image!=""}) by (name)" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "HTTP Probes (success)",
+      "targets": [
+        { "expr": "probe_success" }
+      ]
+    }
+  ]
+}

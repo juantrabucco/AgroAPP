@@ -1,0 +1,53 @@
+version: "3.9"
+
+networks:
+  agro_net:
+    external: true
+    name: agro_net
+
+services:
+  web_blue:
+    image: ${WEB_IMAGE:-agro-web}:${TAG:-latest}
+    container_name: ${PROJECT_NAME}_web_blue
+    environment:
+      - NEXT_PUBLIC_API_URL=/api
+      - NODE_ENV=production
+    networks: [agro_net]
+
+  api_blue:
+    image: ${API_IMAGE:-agro-api}:${TAG:-latest}
+    container_name: ${PROJECT_NAME}_api_blue
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - PUPPETEER_SKIP_DOWNLOAD=false
+    networks: [agro_net]
+
+  web_green:
+    image: ${WEB_IMAGE:-agro-web}:${TAG:-latest}
+    container_name: ${PROJECT_NAME}_web_green
+    environment:
+      - NEXT_PUBLIC_API_URL=/api
+      - NODE_ENV=production
+    networks: [agro_net]
+
+  api_green:
+    image: ${API_IMAGE:-agro-api}:${TAG:-latest}
+    container_name: ${PROJECT_NAME}_api_green
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - S3_ENDPOINT=${S3_ENDPOINT}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - PUPPETEER_SKIP_DOWNLOAD=false
+    networks: [agro_net]

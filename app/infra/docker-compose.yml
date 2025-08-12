@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: agrodb
+    ports: [ "5432:5432" ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports: [ "6379:6379" ]
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports: [ "9000:9000", "9001:9001" ]
+    volumes:
+      - miniodata:/data
+  # metabase:  # opcional para BI rápido
+  #   image: metabase/metabase:latest
+  #   ports: [ "3002:3000" ]
+  #   environment:
+  #     MB_DB_FILE: /metabase.db
+  #   volumes:
+  #     - metabase:/metabase.db
+volumes:
+  pgdata:
+  miniodata:
+  # metabase:

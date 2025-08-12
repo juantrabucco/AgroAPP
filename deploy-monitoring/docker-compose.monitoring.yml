@@ -1,0 +1,122 @@
+version: "3.9"
+
+networks:
+  agro_net:
+    external: true
+    name: agro_net
+
+volumes:
+  prom_data:
+  grafana_data:
+
+services:
+  # Host & container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: agro_cadvisor
+    restart: unless-stopped
+    privileged: true
+    command:
+      - --store_container_labels=false
+      - --docker_only=true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [agro_net]
+    ports:
+      - "8080:8080"
+
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:v1.8.1
+    container_name: agro_node_exporter
+    restart: unless-stopped
+    pid: host
+    network_mode: host
+    command: [ "--path.rootfs=/host" ]
+    volumes:
+      - /:/host:ro,rslave
+
+  postgres_exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: agro_postgres_exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_URI=postgres:5432/postgres?sslmode=disable
+      - DATA_SOURCE_USER=${POSTGRES_USER:-agro}
+      - DATA_SOURCE_PASS=${POSTGRES_PASSWORD:-agro_pass}
+    networks: [agro_net]
+    ports:
+      - "9187:9187"
+
+  blackbox_exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: agro_blackbox
+    restart: unless-stopped
+    networks: [agro_net]
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./prometheus/blackbox.yml:/config/blackbox.yml:ro
+    command: [ "--config.file=/config/blackbox.yml" ]
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: agro_prometheus
+    restart: unless-stopped
+    user: "0:0"
+    volumes:
+      - prom_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    networks: [agro_net]
+    ports:
+      - "9090:9090"
+    depends_on:
+      - cadvisor
+      - node_exporter
+      - postgres_exporter
+      - blackbox_exporter
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: agro_alertmanager
+    restart: unless-stopped
+    networks: [agro_net]
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: agro_grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASS:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    networks: [agro_net]
+    ports:
+      - "3002:3000"
+
+  # Health pinger -> Slack (or generic webhook)
+  health_pinger:
+    build:
+      context: ./pinger
+      dockerfile: Dockerfile
+    container_name: agro_pinger
+    restart: unless-stopped
+    environment:
+      - SLACK_WEBHOOK=${SLACK_WEBHOOK}
+      - TARGET_API=${TARGET_API}
+      - TARGET_WEB=${TARGET_WEB}
+    networks: [agro_net]

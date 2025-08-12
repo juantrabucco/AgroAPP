@@ -1,0 +1,41 @@
+{
+  email {$EMAIL_ADMIN}
+  # optional global options
+}
+
+{$APP_DOMAIN} {
+  encode zstd gzip
+  @api path /api*
+
+  reverse_proxy @api api:3001
+  reverse_proxy / web:3000
+
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+  }
+
+  @health path /healthz
+  respond @health 200
+}
+
+
+{$MONITOR_DOMAIN} {
+  encode zstd gzip
+  basicauth /* {
+    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+  }
+
+  # Paneles bajo paths
+  handle_path /grafana* {
+    reverse_proxy agro_grafana:3000
+  }
+  handle_path /prometheus* {
+    reverse_proxy agro_prometheus:9090
+  }
+  handle_path /alertmanager* {
+    reverse_proxy agro_alertmanager:9093
+  }
+
+  @health path /healthz
+  respond @health 200
+}

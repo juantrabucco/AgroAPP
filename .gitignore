@@ -1,0 +1,19 @@
+# Node/Next/Nest
+node_modules/
+apps/**/.next/
+apps/**/dist/
+.pnpm-store/
+
+# Env & secrets
+.env
+**/.env
+deploy-caddy/.env
+deploy-monitoring/.env
+
+# Backups/artefactos
+db_backups/
+*.log
+.DS_Store
+
+# Zips locales
+*.zip

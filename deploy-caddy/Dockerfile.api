@@ -1,0 +1,17 @@
+# Base image with Chromium deps for Puppeteer
+FROM ghcr.io/puppeteer/puppeteer:22-jammy AS base
+ENV NODE_ENV=production
+WORKDIR /app
+RUN corepack enable
+
+# Install workspace deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps ./apps
+COPY libs ./libs
+RUN pnpm install --frozen-lockfile
+
+# Build API
+RUN pnpm -C apps/api build
+
+EXPOSE 3001
+CMD sh -c "pnpm -C apps/api prisma:migrate deploy && node apps/api/dist/main.js"
