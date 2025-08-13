@@ -1,9 +1,4 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './prisma/prisma.module.js';
-import { AuthModule } from './auth/auth.module.js';
-import { UsersModule } from './users/users.module.js';
-import { CompanyModule } from './company/company.module.js';
+@@ -7,61 +7,63 @@ import { CompanyModule } from './company/company.module.js';
 import { FieldModule } from './field/field.module.js';
 import { PaddockModule } from './field/paddock.module.js';
 import { AnimalModule } from './livestock/animal.module.js';
@@ -29,6 +24,7 @@ import { SearchModule } from './search/search.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { SettlementModule } from './settlement/settlement.module.js';
 import { AuditModule } from './audit/audit.module.js';
+import { HealthzModule } from './healthz/healthz.module.js';
 
 @Module({
   imports: [
@@ -40,6 +36,7 @@ import { AuditModule } from './audit/audit.module.js';
     NotificationsModule,
     SettlementModule,
     ConfigModule.forRoot({ isGlobal: true }),
+    HealthzModule,
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -65,4 +62,3 @@ import { AuditModule } from './audit/audit.module.js';
     { provide: APP_INTERCEPTOR, useClass: ContextInterceptor }
   ]
 })
-export class AppModule {}
